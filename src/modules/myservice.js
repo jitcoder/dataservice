@@ -7,20 +7,19 @@ export default class MyService extends DataService{
     }
 
     getUser(id){
-        // ajax.post('/getUser',{id:id})
-        // .then((data)=>{
-        //     console.log('[Data] ' + JSON.stringify(data));
-        // })
-        // .catch((e)=>{
-        //     console.log('[Error] ' + e.message);
-        // });
-        console.log('Real getUser invoked with id:' + id);
+        ajax.post('http://localhost:8181/getUser',{id:id})
+        .then((data)=>{
+            trigger('userdata',data);
+        })
+        .catch((e)=>{
+            console.log('[Error] ' + e.message);
+        });
     }
     
     getSalesData(userId){
-        ajax.post('/getSalesData',{userId})
+        ajax.get('http://localhost:8181/getSalesData',{userId})
         .then((data)=>{
-            this.updateState('sales',data);
+            trigger('salesdata',data);
         })
         .catch((e)=>{
             console.log('[Error] ' + e.message);

@@ -14,6 +14,7 @@
   "dependencies": {
     "babel-polyfill": "^6.5.0",
     "body-parser": "^1.15.0",
+    "cors": "^2.7.1",
     "express": "^4.13.4",
     "immutable": "^3.7.6",
     "jade": "^1.11.0",

@@ -68,13 +68,20 @@ function DataService(className,libs) {
     this.reserved = ['constructor','register','invoke','mount'];
     this.vendor = getPromisePolyfill() + ';' + getAjaxLib() + 'var state = {};';
     this.vendor += `
-onmessage = function(e){
-    debugger;
-    self[e.data[0]].apply(self,e.data.slice(1));
-};
+    onmessage = function(e){
+        self[e.data[0]].apply(self,e.data.slice(1));
+    };
+    trigger = function(event,data){
+        postMessage({event:event,data:data});
+    };
     `;
 
-    this.interface = {state:{}};
+    this.interface = {
+        events:{},
+        on:function(event,callback){
+            this.events[event] = callback;
+        }
+    };
     
     var methods = [];
     var classMethods = Object.getOwnPropertyNames(className.prototype);
@@ -95,42 +102,43 @@ onmessage = function(e){
     }
 
     this.contents = `
-function initialize(){
-    var libs = ${JSON.stringify(libs || []) };
-    var tasks = [];
-    for(var i = 0; i < libs.length; i++){
-        tasks.push(ajax.send('GET',libs[i],{},'text/plain'));
-    }
-    Promise.all(tasks)
-    .then(function(responses){
-        for(var i = 0; i < responses.length; i++){
-            eval.apply(self,responses[i]);
+    function initialize(){
+        var libs = ${JSON.stringify(libs || []) };
+        var tasks = [];
+        for(var i = 0; i < libs.length; i++){
+            tasks.push(ajax.send('GET',libs[i],{},'text/plain'));
         }
-        main();
-    })
-};
+        Promise.all(tasks)
+        .then(function(responses){
+            for(var i = 0; i < responses.length; i++){
+                eval.apply(self,responses[i]);
+            }
+            main();
+        })
+    };
 
-${methods.join('\n')}
-
-`;
+    ${methods.join('\n')}
+    initialize();
+    `;
     
     var blobURL = URL.createObjectURL( new Blob([this.vendor + ';' + this.contents],{type:'text/javascript'}));
-    console.log('starting service');
     this.instance = new Worker(blobURL);
     URL.revokeObjectURL(blobURL);
-    this.instance.onmessage = function(data){
-        this.interface.state[data.key] = data.value;
+    this.instance.onmessage = function(msg){
+        debugger;
+        if(typeof this.interface.events[msg.data.event] === 'undefined'){
+            console.warn('unhandled event triggered: ' + msg.data.event);
+        }
+        else{
+            this.interface.events[msg.data.event](msg.data.data);
+        }
+        
     }.bind(this);
 
 
 }
 
-DataService.prototype.register = function(func) {
-    this.interface[func] = this.invoke.bind(this, func);
-};
-
-DataService.prototype.invoke = function(method) {
-    debugger;
+DataService.prototype.invoke = function() {
     var args = new Array(arguments);
     for(var i = 0; i < arguments.length; ++i) {
         args[i] = arguments[i];
